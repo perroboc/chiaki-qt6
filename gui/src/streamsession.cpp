@@ -11,6 +11,7 @@
 #include <QAudioDevice>
 #include <QMediaDevices>
 #include <QAudioSink>
+#include <QAudioDecoder>
 
 #include <cstring>
 #include <chiaki/session.h>
@@ -86,15 +87,6 @@ StreamSession::StreamSession(const StreamSessionConnectInfo &connect_info, QObje
 #if CHIAKI_LIB_ENABLE_PI_DECODER
 	}
 #endif
-
-	const auto deviceInfos = QMediaDevices::audioOutputs();
-	for (const QAudioDevice &deviceInfo : deviceInfos) {
-		const auto supported_audio_formats = deviceInfo.supportedSampleFormats();
-		for (const QAudioFormat::SampleFormat &supported_audio_format : supported_audio_formats) {
-			CHIAKI_LOGV(log.GetChiakiLog(), "Supported audio format on default device: %d", supported_audio_format);
-		}
-	}
-		
 
 	audio_out_device_info = QMediaDevices::defaultAudioOutput();
 	CHIAKI_LOGV(log.GetChiakiLog(), "Selected default audio Device: %s", qPrintable(audio_out_device_info.description()));
@@ -368,14 +360,24 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 	QAudioSink* audio_output = nullptr;
 	audio_io = nullptr;
 
-	CHIAKI_LOGV(log.GetChiakiLog(), "Init audio");
-	CHIAKI_LOGV(log.GetChiakiLog(), "Previously selected audio device: %s.",
+	CHIAKI_LOGV(log.GetChiakiLog(), "---START AUDIO INIT---");
+	CHIAKI_LOGV(log.GetChiakiLog(), "Selected audio device: %s.",
 					qPrintable(audio_out_device_info.description()));
-	CHIAKI_LOGV(log.GetChiakiLog(), "Could also be : %s.",
-					qPrintable(QMediaDevices::defaultAudioOutput().description()));
 
 	QAudioFormat audio_format = audio_out_device_info.preferredFormat();
-	CHIAKI_LOGV(log.GetChiakiLog(), "Audio format is : %d.", audio_format);
+	CHIAKI_LOGV(log.GetChiakiLog(), "Audio (preferred) Format: %i channels @ %i Hz in format %i.",
+				audio_format.channelCount(),
+				audio_format.sampleRate(),
+				audio_format.sampleFormat());
+	
+	QAudioFormat desired_format;
+	desired_format.setChannelCount(2);
+	desired_format.setSampleFormat(QAudioFormat::Int16);
+	desired_format.setSampleRate(48000);
+	CHIAKI_LOGV(log.GetChiakiLog(), "Desired Audio Format: %i channels @ %i Hz in format %i.",
+				desired_format.channelCount(),
+				desired_format.sampleRate(),
+				desired_format.sampleFormat());
 	//audio_format.setSampleRate(rate);
 	//audio_format.setChannelCount(channels);
 	//audio_format.setSampleFormat(QAudioFormat::UInt8);
@@ -385,17 +387,25 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 
 	//QAudioDeviceInfo audio_device_info = audio_out_device_info;
 	//QAudioDevice audio_device_info = audio_out_device_info;
-	if(!audio_out_device_info.isFormatSupported(audio_format))
+	//See if we can use the desired format
+	if(audio_out_device_info.isFormatSupported(desired_format))
 	{
-		CHIAKI_LOGE(log.GetChiakiLog(), "Audio Format with %u channels @ %u Hz not supported by Audio Device %s.",
-					channels, rate,
-					qPrintable(audio_out_device_info.description()));
-		return;
+		audio_format = desired_format;
+	}
+	//if not, use the device preferred format which might have choppy audio :(
+	else
+	{
+		CHIAKI_LOGI(log.GetChiakiLog(), "Audio Format with %u channels @ %u Hz with QAudioFormat::SampleFormat %u not supported by Audio Device.",
+				desired_format.channelCount(),
+				desired_format.sampleRate(),
+				desired_format.sampleFormat());
+		CHIAKI_LOGI(log.GetChiakiLog(), "Fall back to preferred device Audio Format.");
 	}
 
-	// audio_output = new QAudioOutput(audio_device_info, audio_format, this);
-	// audio_output->setBufferSize(audio_buffer_size);
-	// audio_io = audio_output->start();
+	CHIAKI_LOGI(log.GetChiakiLog(), "Audio Format set to %u channels @ %u Hz, QAudioFormat::SampleFormat %u.",
+				audio_format.channelCount(),
+				audio_format.sampleRate(),
+				audio_format.sampleFormat());
 
 	audio_output = new QAudioSink(audio_out_device_info, audio_format, this);
 	audio_output->setBufferSize(audio_buffer_size);
@@ -403,7 +413,11 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 	
 	CHIAKI_LOGI(log.GetChiakiLog(), "Audio Device %s opened with %u channels @ %u Hz, buffer size %u.",
 				qPrintable(audio_out_device_info.description()),
-				channels, rate, audio_output->bufferSize());
+				audio_format.channelCount(),
+				audio_format.sampleRate(),
+				audio_format.sampleFormat());
+	
+	CHIAKI_LOGV(log.GetChiakiLog(), "---END AUDIO INIT---");
 }
 
 void StreamSession::PushAudioFrame(int16_t *buf, size_t samples_count)
