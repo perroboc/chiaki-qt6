@@ -9,6 +9,8 @@
 #include <QKeyEvent>
 #include <QAudioOutput>
 #include <QAudioDevice>
+#include <QMediaDevices>
+#include <QAudioSink>
 
 #include <cstring>
 #include <chiaki/session.h>
@@ -85,9 +87,9 @@ StreamSession::StreamSession(const StreamSessionConnectInfo &connect_info, QObje
 	}
 #endif
 
-	
+	QAudioDevice audio_out_device_info = QMediaDevices::defaultAudioOutput();
+    
 	//audio_out_device_info = QAudioDeviceInfo::defaultOutputDevice();
-	QAudioDevice audio_out_device_info(QAudioDevice::defaultOutputDevice());
 	// if(!connect_info.audio_out_device.isEmpty())
 	// {
 	// 	//for(QAudioDeviceInfo di : QAudioDeviceInfo::availableDevices(QAudio::AudioOutput))
@@ -353,15 +355,16 @@ void StreamSession::SendFeedbackState()
 void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 {
 	delete audio_output;
-	audio_output = nullptr;
+	QAudioSink* audio_output = nullptr;
 	audio_io = nullptr;
 
 	QAudioFormat audio_format;
 	audio_format.setSampleRate(rate);
 	audio_format.setChannelCount(channels);
-	audio_format.setSampleSize(16);
-	audio_format.setCodec("audio/pcm");
-	audio_format.setSampleType(QAudioFormat::SignedInt);
+	audio_format.setSampleFormat(QAudioFormat::Int16);
+	//audio_format.setSampleSize(16);
+	//audio_format.setCodec("audio/pcm");
+	//audio_format.setSampleType(QAudioFormat::SignedInt);
 
 	//QAudioDeviceInfo audio_device_info = audio_out_device_info;
 	QAudioDevice audio_device_info = audio_out_device_info;
@@ -369,16 +372,20 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 	{
 		CHIAKI_LOGE(log.GetChiakiLog(), "Audio Format with %u channels @ %u Hz not supported by Audio Device %s",
 					channels, rate,
-					audio_device_info.deviceName().toLocal8Bit().constData());
+					audio_device_info.description().toLocal8Bit().constData());
 		return;
 	}
 
-	audio_output = new QAudioOutput(audio_device_info, audio_format, this);
+	// audio_output = new QAudioOutput(audio_device_info, audio_format, this);
+	// audio_output->setBufferSize(audio_buffer_size);
+	// audio_io = audio_output->start();
+
+	audio_output = new QAudioSink(audio_device_info, audio_format, this);
 	audio_output->setBufferSize(audio_buffer_size);
 	audio_io = audio_output->start();
-
+	
 	CHIAKI_LOGI(log.GetChiakiLog(), "Audio Device %s opened with %u channels @ %u Hz, buffer size %u",
-				audio_device_info.deviceName().toLocal8Bit().constData(),
+				audio_device_info.description().toLocal8Bit().constData(),
 				channels, rate, audio_output->bufferSize());
 }
 

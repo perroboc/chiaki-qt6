@@ -82,7 +82,7 @@ MainWindow::MainWindow(Settings *settings, QWidget *parent)
 	auto layout = new QVBoxLayout();
 	main_widget->setLayout(layout);
 	setCentralWidget(main_widget);
-	layout->setMargin(0);
+	//layout->setMargin(0);
 
 	auto LoadIcon = [this](const QString &filename) {
 		return QIcon(new IconEngine(filename));
@@ -356,6 +356,6 @@ void MainWindow::UpdateServerWidgets()
 		grid_widget->AddWidget(widget);
 	}
 
-	for(size_t i=0; i<server_item_widgets.count(); i++)
+	for(size_t i=0; i < server_item_widgets.size(); i++)
 		server_item_widgets[i]->Update(display_servers[i]);
 }
