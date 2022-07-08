@@ -87,7 +87,17 @@ StreamSession::StreamSession(const StreamSessionConnectInfo &connect_info, QObje
 	}
 #endif
 
-	QAudioDevice audio_out_device_info = QMediaDevices::defaultAudioOutput();
+	const auto deviceInfos = QMediaDevices::audioOutputs();
+	for (const QAudioDevice &deviceInfo : deviceInfos) {
+		const auto supported_audio_formats = deviceInfo.supportedSampleFormats();
+		for (const QAudioFormat::SampleFormat &supported_audio_format : supported_audio_formats) {
+			CHIAKI_LOGV(log.GetChiakiLog(), "Supported audio format on default device: %d", supported_audio_format);
+		}
+	}
+		
+
+	audio_out_device_info = QMediaDevices::defaultAudioOutput();
+	CHIAKI_LOGV(log.GetChiakiLog(), "Selected default audio Device: %s", qPrintable(audio_out_device_info.description()));
     
 	//audio_out_device_info = QAudioDeviceInfo::defaultOutputDevice();
 	// if(!connect_info.audio_out_device.isEmpty())
@@ -358,21 +368,28 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 	QAudioSink* audio_output = nullptr;
 	audio_io = nullptr;
 
-	QAudioFormat audio_format;
-	audio_format.setSampleRate(rate);
-	audio_format.setChannelCount(channels);
-	audio_format.setSampleFormat(QAudioFormat::Int16);
+	CHIAKI_LOGV(log.GetChiakiLog(), "Init audio");
+	CHIAKI_LOGV(log.GetChiakiLog(), "Previously selected audio device: %s.",
+					qPrintable(audio_out_device_info.description()));
+	CHIAKI_LOGV(log.GetChiakiLog(), "Could also be : %s.",
+					qPrintable(QMediaDevices::defaultAudioOutput().description()));
+
+	QAudioFormat audio_format = audio_out_device_info.preferredFormat();
+	CHIAKI_LOGV(log.GetChiakiLog(), "Audio format is : %d.", audio_format);
+	//audio_format.setSampleRate(rate);
+	//audio_format.setChannelCount(channels);
+	//audio_format.setSampleFormat(QAudioFormat::UInt8);
 	//audio_format.setSampleSize(16);
 	//audio_format.setCodec("audio/pcm");
 	//audio_format.setSampleType(QAudioFormat::SignedInt);
 
 	//QAudioDeviceInfo audio_device_info = audio_out_device_info;
-	QAudioDevice audio_device_info = audio_out_device_info;
-	if(!audio_device_info.isFormatSupported(audio_format))
+	//QAudioDevice audio_device_info = audio_out_device_info;
+	if(!audio_out_device_info.isFormatSupported(audio_format))
 	{
-		CHIAKI_LOGE(log.GetChiakiLog(), "Audio Format with %u channels @ %u Hz not supported by Audio Device %s",
+		CHIAKI_LOGE(log.GetChiakiLog(), "Audio Format with %u channels @ %u Hz not supported by Audio Device %s.",
 					channels, rate,
-					audio_device_info.description().toLocal8Bit().constData());
+					qPrintable(audio_out_device_info.description()));
 		return;
 	}
 
@@ -380,12 +397,12 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 	// audio_output->setBufferSize(audio_buffer_size);
 	// audio_io = audio_output->start();
 
-	audio_output = new QAudioSink(audio_device_info, audio_format, this);
+	audio_output = new QAudioSink(audio_out_device_info, audio_format, this);
 	audio_output->setBufferSize(audio_buffer_size);
 	audio_io = audio_output->start();
 	
-	CHIAKI_LOGI(log.GetChiakiLog(), "Audio Device %s opened with %u channels @ %u Hz, buffer size %u",
-				audio_device_info.description().toLocal8Bit().constData(),
+	CHIAKI_LOGI(log.GetChiakiLog(), "Audio Device %s opened with %u channels @ %u Hz, buffer size %u.",
+				qPrintable(audio_out_device_info.description()),
 				channels, rate, audio_output->bufferSize());
 }
 
