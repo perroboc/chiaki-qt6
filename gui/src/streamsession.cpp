@@ -361,6 +361,7 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 	audio_io = nullptr;
 
 	CHIAKI_LOGV(log.GetChiakiLog(), "---START AUDIO INIT---");
+	
 	CHIAKI_LOGV(log.GetChiakiLog(), "Selected audio device: %s.",
 					qPrintable(audio_out_device_info.description()));
 
@@ -374,20 +375,12 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 	desired_format.setChannelCount(2);
 	desired_format.setSampleFormat(QAudioFormat::Int16);
 	desired_format.setSampleRate(48000);
+
 	CHIAKI_LOGV(log.GetChiakiLog(), "Desired Audio Format: %i channels @ %i Hz in format %i.",
 				desired_format.channelCount(),
 				desired_format.sampleRate(),
 				desired_format.sampleFormat());
-	//audio_format.setSampleRate(rate);
-	//audio_format.setChannelCount(channels);
-	//audio_format.setSampleFormat(QAudioFormat::UInt8);
-	//audio_format.setSampleSize(16);
-	//audio_format.setCodec("audio/pcm");
-	//audio_format.setSampleType(QAudioFormat::SignedInt);
 
-	//QAudioDeviceInfo audio_device_info = audio_out_device_info;
-	//QAudioDevice audio_device_info = audio_out_device_info;
-	//See if we can use the desired format
 	if(audio_out_device_info.isFormatSupported(desired_format))
 	{
 		audio_format = desired_format;
@@ -401,11 +394,6 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 				desired_format.sampleFormat());
 		CHIAKI_LOGI(log.GetChiakiLog(), "Fall back to preferred device Audio Format.");
 	}
-
-	CHIAKI_LOGI(log.GetChiakiLog(), "Audio Format set to %u channels @ %u Hz, QAudioFormat::SampleFormat %u.",
-				audio_format.channelCount(),
-				audio_format.sampleRate(),
-				audio_format.sampleFormat());
 
 	audio_output = new QAudioSink(audio_out_device_info, audio_format, this);
 	audio_output->setBufferSize(audio_buffer_size);
