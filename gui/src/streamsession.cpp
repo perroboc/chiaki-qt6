@@ -11,7 +11,6 @@
 #include <QAudioDevice>
 #include <QMediaDevices>
 #include <QAudioSink>
-#include <QAudioDecoder>
 
 #include <cstring>
 #include <chiaki/session.h>
@@ -361,7 +360,7 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 	audio_io = nullptr;
 
 	CHIAKI_LOGV(log.GetChiakiLog(), "---START AUDIO INIT---");
-	
+
 	CHIAKI_LOGV(log.GetChiakiLog(), "Selected audio device: %s.",
 					qPrintable(audio_out_device_info.description()));
 
